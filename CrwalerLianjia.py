@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 
+import datetime
 import requests
 import time
 
@@ -9,10 +10,8 @@ class CrwalerLianjia():
         self.header = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) '
                           'Chrome/72.0.3626.109 Safari/537.36'}
-        self.url = 'https://sh.lianjia.com/ershoufang/putuo/pg{0}p1p2/'
+        self.url = 'https://sh.lianjia.com/ershoufang/putuo/pg{0}p1p2l2/'
         'https://sh.lianjia.com/ershoufang/putuo/pg2dp1l2p1p2/'
-
-
 
     def getList(self):
         for i in range(1, 101):
@@ -22,6 +21,8 @@ class CrwalerLianjia():
             sellListContent = soup.select('.sellListContent li.LOGCLICKDATA')
             for sell in sellListContent:
                 try:
+                    # 详情url
+                    detailUrl = sell.select('div.title a')[0].attrs['href']
                     # 标题
                     title = sell.select('div.title a')[0].string
                     # 先抓取全部的div信息，再针对每一条进行提取
@@ -31,7 +32,7 @@ class CrwalerLianjia():
                     # 对楼盘的信息进行分割
                     info = houseInfo[0].split('|')
                     # 房子类型
-                    house_type = info[1].strip()
+                    houseType = info[1].strip()
                     # 面积大小
                     area = info[2].strip()
                     # 房间朝向
@@ -46,26 +47,38 @@ class CrwalerLianjia():
                     unitPrice = list(sell.select('div.unitPrice')[0].stripped_strings)[0]
 
                     # 声明一个字典存储数据
-                    data_dict = {}
-                    data_dict['title'] = title
-                    data_dict['loupan'] = loupan
-                    data_dict['house_type'] = house_type
-                    data_dict['area'] = area
-                    data_dict['toward'] = toward
-                    data_dict['renovation'] = renovation
-                    data_dict['positionInfo'] = positionInfo
-                    data_dict['totalPrice'] = totalPrice
-                    data_dict['unitPrice'] = unitPrice
-
-                    print(data_dict)
+                    dataDict = {}
+                    dataDict['title'] = title
+                    dataDict['loupan'] = loupan
+                    dataDict['houseType'] = houseType
+                    dataDict['area'] = area
+                    dataDict['toward'] = toward
+                    dataDict['renovation'] = renovation
+                    dataDict['positionInfo'] = positionInfo
+                    dataDict['totalPrice'] = totalPrice
+                    dataDict['unitPrice'] = unitPrice
+                    dataDict['detailUrl'] = detailUrl
+                    self.getDetail(dataDict)
                 except Exception as e:
                     print(e)
                     continue
 
             time.sleep(3)
 
-    def getDetail(self):
-        pass
+    def getDetail(self, dataDict):
+        try:
+            htmlStr = requests.get(dataDict['detailUrl'], headers=self.header).content
+            soup = BeautifulSoup(htmlStr, 'lxml')
+            # 挂牌日期
+            dataDict['listingDate'] = soup.select('.introContent .transaction li span')[1]
+            # 上次交易日期
+            dataDict['lastTradingDate'] = soup.select('.introContent .transaction li span')[1]
+            # 抓取时间
+            dataDict['lastTradingDate'] = datetime.datetime.now()
+            print(dataDict)
+            print(dataDict['lastTradingDate'] )
+        except Exception as e:
+            print(e)
 
 
 if __name__ == '__main__':
